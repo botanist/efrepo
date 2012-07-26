@@ -17,7 +17,7 @@ namespace EFRepositoryTest
 				var people = repository.GetAllPeople();
 
 				Console.WriteLine(people.Count);
-
+                Console.ReadLine();
 			}
 		}
 	}

@@ -1,4 +1,9 @@
-﻿<#@ template language="C#" debug="true" hostspecific="true"#>
+﻿<#/*
+	This T4 Template transform was borrowed from Dane Morgridge's GitHub repo found
+	here: https://github.com/danemorgridge/efrepo
+*/#>
+
+<#@ template language="C#" debug="true" hostspecific="true"#>
 <#@ include file="EF.Utility.CS.ttinclude"#>
 <#@ import namespace="System.IO" #>
 <#@ import namespace="System.Diagnostics" #>
@@ -19,6 +24,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
+using LinqSpecs;
 
 namespace <#= code.VsNamespaceSuggestion() #>
 { 
@@ -26,7 +32,8 @@ namespace <#= code.VsNamespaceSuggestion() #>
 	{
 		IUnitOfWork UnitOfWork { get; set; }
 		IQueryable<T> All();
-		IQueryable<T> Where(Expression<Func<T, bool>> expression);
+		IQueryable<T> Where(Specification<T> specification);
+		T Single(Specification<T> specification);
 		void Add(T entity);
 		void Delete(T entity);
 	}
@@ -37,7 +44,8 @@ EdmItemCollection ItemCollection = loader.CreateEdmItemCollection(edmxFile);
 EntityContainer container = ItemCollection.GetItems<EntityContainer>().FirstOrDefault();
 EntityFrameworkTemplateFileManager fileManager = EntityFrameworkTemplateFileManager.Create(this);
 
-foreach (EntityType entity in ItemCollection.GetItems<EntityType>().OrderBy(e => e.Name))
+// If you ever want to implement Type-specific Repositories then uncomment this foreach loop
+/*foreach (EntityType entity in ItemCollection.GetItems<EntityType>().OrderBy(e => e.Name))
 {;
 
 	if(!DoesFileExist(entity.Name + "Repository.cs"))
@@ -60,7 +68,7 @@ namespace <#= code.VsNamespaceSuggestion() #>
 		fileManager.StartNewFile(entity.Name + "Repository.cs");
 		this.Write(OutputFile(entity.Name + "Repository.cs"));
 	}
-}
+}*/
 
 fileManager.StartNewFile("IUnitOfWork.cs");
 #>using System.Data.Objects;
@@ -101,6 +109,7 @@ using System.Data.Objects;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
+using LinqSpecs;
 
 namespace <#= code.VsNamespaceSuggestion() #>
 {
@@ -126,9 +135,14 @@ namespace <#= code.VsNamespaceSuggestion() #>
 			return ObjectSet.AsQueryable();
 		}
 
-		public IQueryable<T> Where(Expression<Func<T, bool>> expression)
+		public IQueryable<T> Where(Specification<T> specification)
 		{
-			return ObjectSet.Where(expression);
+			return ObjectSet.Where(specification.IsSatisfiedBy().Compile()).AsQueryable();
+		}
+
+		public T Single(Specification<T> specification)
+		{
+			return ObjectSet.Single(specification.IsSatisfiedBy().Compile());
 		}
 
 		public void Add(T entity)
@@ -180,8 +194,9 @@ namespace <#= code.VsNamespaceSuggestion() #>
 		}
 	}
 }
-<#fileManager.StartNewFile("RepositoryHelper.cs");
-#>
+
+// If you ever want to implement Type-specific Repositories then uncomment this foreach loop
+<# fileManager.StartNewFile("RepositoryHelper.cs");#>
 namespace <#= code.VsNamespaceSuggestion() #>
 {
 	public static class RepositoryHelper
@@ -190,7 +205,7 @@ namespace <#= code.VsNamespaceSuggestion() #>
 		{
 			return new EFUnitOfWork();
 		}		
-		<# foreach (EntityType entity in ItemCollection.GetItems<EntityType>().OrderBy(e => e.Name))
+		<# /* foreach (EntityType entity in ItemCollection.GetItems<EntityType>().OrderBy(e => e.Name))
 {; #>
 
 		public static <#=code.Escape(entity)#>Repository Get<#=code.Escape(entity)#>Repository()
@@ -207,10 +222,11 @@ namespace <#= code.VsNamespaceSuggestion() #>
 			repository.UnitOfWork = unitOfWork;
 			return repository;
 		}		
-<# } #>
-	}
-}<#	fileManager.Process();
-#>
+<# } */#>
+}
+}
+
+<# fileManager.Process(); #>
 
 
 <#+
